@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contest Reminder</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="header">
+    <span class="logo">🏆 Contest Reminder</span>
+    <a href="../options/options.html" target="_blank" class="settings-btn" title="Settings">⚙️</a>
+  </div>
+
+  <div id="last-updated" class="last-updated">Fetching contests...</div>
+
+  <div id="contest-list" class="contest-list">
+    <!-- Populated by popup.js -->
+  </div>
+
+  <div id="empty-state" class="empty-state hidden">
+    <p>🎉 No upcoming contests right now.</p>
+    <p class="sub">Check back later or enable more platforms in settings.</p>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

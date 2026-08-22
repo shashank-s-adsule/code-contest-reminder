@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Contest Reminder — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>⚙️ Settings</h1>
+
+    <section>
+      <h2>Platforms</h2>
+      <p class="hint">Toggle which platforms to track.</p>
+      <div class="toggles">
+        <label class="toggle-row">
+          <span class="platform cf">Codeforces</span>
+          <input type="checkbox" id="toggle-Codeforces" checked />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span class="platform lc">LeetCode</span>
+          <input type="checkbox" id="toggle-LeetCode" checked />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span class="platform cc">CodeChef</span>
+          <input type="checkbox" id="toggle-CodeChef" checked />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span class="platform ac">AtCoder</span>
+          <input type="checkbox" id="toggle-AtCoder" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Remind Me Before</h2>
+      <p class="hint">Choose when to receive notifications.</p>
+      <div class="toggles">
+        <label class="toggle-row">
+          <span>1 day before</span>
+          <input type="checkbox" id="remind-1440" />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span>1 hour before</span>
+          <input type="checkbox" id="remind-60" checked />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span>15 minutes before</span>
+          <input type="checkbox" id="remind-15" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <button id="save-btn">Save Settings</button>
+    <div id="saved-msg" class="saved-msg hidden">✅ Settings saved!</div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
