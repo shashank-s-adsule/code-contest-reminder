@@ -133,6 +133,14 @@ async function fireNotification(alarmName) {
   });
 }
 
+// ─── Message Handler ──────────────────────────────────────────────────────────
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === "REPOLL") {
+    pollAndCache().then(scheduleNotifications);
+  }
+});
+
 // ─── Notification Click Handler ──────────────────────────────────────────────
 
 chrome.notifications.onButtonClicked.addListener(async (notifId) => {

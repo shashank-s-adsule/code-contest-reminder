@@ -3,12 +3,12 @@
 ## Phase 1 — Extension
 
 ### Setup
-- [ ] Generate 16x16, 48x48, 128x128 PNG icons and put in `extension/assets/icons/`
+- [x] Generate 16x16, 48x48, 128x128 PNG icons and put in `extension/assets/icons/`
 - [ ] Load unpacked in Chrome and verify no manifest errors
 
 ### Core
-- [ ] Verify Codeforces fetcher returns correct data
-- [ ] Verify Kontests fetcher for LeetCode / CodeChef / AtCoder
+- [x] Verify Codeforces fetcher returns correct data — confirmed live against `codeforces.com/api/contest.list`
+- [ ] Verify Kontests fetcher for LeetCode / CodeChef / AtCoder — **blocked**: `kontests.net` is currently unreachable (connection times out on all endpoints). It has a history of outages (see [AliOsm/kontests#43](https://github.com/AliOsm/kontests/issues/43), [#72](https://github.com/AliOsm/kontests/issues/72)). Re-test once it's back up; consider a fallback/direct-API plan if it stays flaky.
 - [ ] Test background worker alarm fires on schedule
 - [ ] Confirm notification appears at correct time offset
 

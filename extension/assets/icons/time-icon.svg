@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Time icon</title>
+  <desc id="desc">A white clock face with blue hands and two yellow markers on a blue square.</desc>
+
+  <rect width="256" height="256" fill="#2E63E8"/>
+
+  <circle cx="128" cy="139" r="87" fill="#FFFFFF"/>
+
+  <circle cx="49" cy="55" r="16" fill="#FFD21F"/>
+  <circle cx="207" cy="55" r="16" fill="#FFD21F"/>
+
+  <g stroke="#2E63E8" stroke-width="23" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m128 139 35-65"/>
+    <path d="m128 139 39 25"/>
+  </g>
+</svg>
