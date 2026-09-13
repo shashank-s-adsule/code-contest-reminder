@@ -10,7 +10,19 @@ body {
 
 .container { max-width: 420px; margin: 0 auto; }
 
-h1 { font-size: 20px; margin-bottom: 24px; }
+h1 {
+  font-size: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+h1 .icon-gear {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
 
 section {
   background: #161b27;
