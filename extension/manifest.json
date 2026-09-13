@@ -12,7 +12,9 @@
 
   "host_permissions": [
     "https://codeforces.com/*",
-    "https://kontests.net/*"
+    "https://leetcode.com/*",
+    "https://www.codechef.com/*",
+    "https://atcoder.jp/*"
   ],
 
   "background": {

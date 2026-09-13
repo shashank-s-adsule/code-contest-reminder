@@ -6,8 +6,10 @@
 ```
 chrome.alarms (every 30min)
     └─▶ Background Worker
-            ├─▶ Codeforces API  (official, no key)
-            ├─▶ Kontests API    (LC + CodeChef + AtCoder)
+            ├─▶ Codeforces API       (official, no key)
+            ├─▶ LeetCode GraphQL     (leetcode.com/graphql, undocumented)
+            ├─▶ CodeChef JSON API    (codechef.com/api/list/contests/all, undocumented)
+            ├─▶ AtCoder page scrape  (atcoder.jp/contests/, no API exists)
             └─▶ chrome.storage.local (cache)
                     └─▶ Popup UI (reads cache, renders cards)
                     └─▶ Notification Scheduler (fires alarms per contest)
@@ -19,6 +21,9 @@ chrome.alarms (every 30min)
 {
   contests: Contest[],    // cached upcoming contests
   lastUpdated: number,    // timestamp of last poll
+  fetchErrors: {          // platforms whose last poll failed, mapped to when
+    [platform: string]: number,
+  },
 }
 
 // chrome.storage.sync  (synced across devices)
@@ -50,18 +55,31 @@ chrome.alarms (every 30min)
 }
 ```
 
+### On dropping kontests.net
+v1 originally used kontests.net as a single aggregator for LeetCode/CodeChef/
+AtCoder. It went unreachable for the duration of this build and has a history
+of outages, so each platform now hits its own source directly instead:
+LeetCode's GraphQL API, CodeChef's own contests-list JSON endpoint, and (since
+AtCoder has no public API for upcoming contests) a scrape of AtCoder's own
+contests page. The AtCoder scraper is the one piece that can silently break —
+if AtCoder changes that page's markup, `fetchAtCoderContests()` throws and the
+worker falls back to cached data rather than showing garbage.
+
 ## Phase 2 — PWA
 - Next.js app on Vercel
 - Web Push Notifications via `web-push` npm package
 - Users enter their handles to filter by platform
-- Reuses shared/fetchers/ directly
+- `extension/shared/fetchers/` currently lives inside `extension/` because a
+  Chrome extension can't import from outside its loaded root — for the PWA,
+  either copy those files in at build time or hoist `shared/` back to the
+  repo root once there's a bundler in the picture
 
 ## Phase 3 — Desktop (Electron)
 - Wraps PWA frontend
 - System tray icon with contest count badge
 - Native OS notifications
 - Auto-launch on startup
-- Reuses same shared/fetchers/
+- Same fetcher-reuse caveat as Phase 2
 
 ## Milestones
 | # | Goal | Status |

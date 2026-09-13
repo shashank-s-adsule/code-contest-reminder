@@ -4,9 +4,12 @@
  * Updates countdowns every second live.
  */
 
-const contestList = document.getElementById("contest-list");
-const emptyState  = document.getElementById("empty-state");
-const lastUpdated = document.getElementById("last-updated");
+const contestList  = document.getElementById("contest-list");
+const emptyState   = document.getElementById("empty-state");
+const loadingState = document.getElementById("loading-state");
+const errorBanner  = document.getElementById("error-banner");
+const lastUpdated  = document.getElementById("last-updated");
+const refreshBtn   = document.getElementById("refresh-btn");
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -52,9 +55,81 @@ function formatStartTime(isoString) {
   });
 }
 
+/** Only ever point "Open" links at http(s) URLs — contest data comes from
+ * third-party APIs, so don't trust it enough to hand it a raw href. */
+function safeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? url : "#";
+  } catch {
+    return "#";
+  }
+}
+
 // ─── Render ─────────────────────────────────────────────────────────────────
 
 let contests = [];
+
+function buildCard(contest) {
+  const ms = new Date(contest.startTime) - Date.now();
+  const urgencyClass = ms < 3600_000 ? "urgent" : ms < 10800_000 ? "soon" : "";
+
+  const card = document.createElement("div");
+  card.className = "contest-card";
+  card.dataset.contestId = contest.id;
+
+  const top = document.createElement("div");
+  top.className = "card-top";
+
+  const name = document.createElement("span");
+  name.className = "contest-name";
+  name.textContent = contest.name; // textContent — contest names come from third-party APIs
+
+  const badgeGroup = document.createElement("div");
+  badgeGroup.className = "badge-group";
+
+  const platformBadge = document.createElement("span");
+  platformBadge.className = `platform-badge badge-${contest.platform}`;
+  platformBadge.textContent = contest.platform;
+  badgeGroup.appendChild(platformBadge);
+
+  // Codeforces gives us a real division/type label distinct from the name;
+  // other platforms currently reuse the contest name, so skip the redundant badge.
+  if (contest.type && contest.type !== "Other" && contest.type !== contest.name) {
+    const typeBadge = document.createElement("span");
+    typeBadge.className = "type-badge";
+    typeBadge.textContent = contest.type;
+    badgeGroup.appendChild(typeBadge);
+  }
+
+  top.append(name, badgeGroup);
+
+  const bottom = document.createElement("div");
+  bottom.className = "card-bottom";
+
+  const left = document.createElement("div");
+  const countdown = document.createElement("div");
+  countdown.className = `countdown ${urgencyClass}`;
+  countdown.dataset.start = contest.startTime;
+  countdown.textContent = formatCountdown(ms);
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = `${formatStartTime(contest.startTime)} · ${formatDuration(contest.durationMinutes)}`;
+
+  left.append(countdown, meta);
+
+  const openBtn = document.createElement("a");
+  openBtn.className = "open-btn";
+  openBtn.href = safeUrl(contest.url);
+  openBtn.target = "_blank";
+  openBtn.rel = "noopener noreferrer";
+  openBtn.textContent = "Open →";
+
+  bottom.append(left, openBtn);
+  card.append(top, bottom);
+  return card;
+}
 
 function renderContests() {
   const { settings } = window.__settings__ || { settings: { platforms: {} } };
@@ -70,32 +145,20 @@ function renderContests() {
   }
 
   emptyState.classList.add("hidden");
-
   for (const contest of visible) {
-    const ms = new Date(contest.startTime) - Date.now();
-    const countdown = formatCountdown(ms);
-    const urgencyClass = ms < 3600_000 ? "urgent" : ms < 10800_000 ? "soon" : "";
-
-    const card = document.createElement("div");
-    card.className = "contest-card";
-    card.dataset.contestId = contest.id;
-    card.innerHTML = `
-      <div class="card-top">
-        <span class="contest-name">${contest.name}</span>
-        <span class="platform-badge badge-${contest.platform}">${contest.platform}</span>
-      </div>
-      <div class="card-bottom">
-        <div>
-          <div class="countdown ${urgencyClass}" data-start="${contest.startTime}">
-            ${countdown}
-          </div>
-          <div class="meta">${formatStartTime(contest.startTime)} · ${formatDuration(contest.durationMinutes)}</div>
-        </div>
-        <a class="open-btn" href="${contest.url}" target="_blank">Open →</a>
-      </div>
-    `;
-    contestList.appendChild(card);
+    contestList.appendChild(buildCard(contest));
   }
+}
+
+function renderErrorBanner(fetchErrors) {
+  const failed = Object.keys(fetchErrors || {});
+  if (failed.length === 0) {
+    errorBanner.classList.add("hidden");
+    errorBanner.textContent = "";
+    return;
+  }
+  errorBanner.textContent = `⚠️ Couldn't refresh ${failed.join(", ")} — showing last known data.`;
+  errorBanner.classList.remove("hidden");
 }
 
 // ─── Live Countdown Update ───────────────────────────────────────────────────
@@ -109,12 +172,12 @@ function tickCountdowns() {
   }
 }
 
-// ─── Init ────────────────────────────────────────────────────────────────────
+// ─── Data Loading ───────────────────────────────────────────────────────────
 
-async function init() {
-  const [{ contests: cached = [], lastUpdated: ts }, { settings }] =
+async function loadFromStorage() {
+  const [{ contests: cached = [], lastUpdated: ts, fetchErrors }, { settings }] =
     await Promise.all([
-      chrome.storage.local.get(["contests", "lastUpdated"]),
+      chrome.storage.local.get(["contests", "lastUpdated", "fetchErrors"]),
       chrome.storage.sync.get("settings"),
     ]);
 
@@ -128,7 +191,39 @@ async function init() {
       : `Updated ${ago} min ago`;
   }
 
-  renderContests();
+  renderErrorBanner(fetchErrors);
+
+  if (cached.length === 0 && !ts) {
+    loadingState.classList.remove("hidden");
+    contestList.classList.add("hidden");
+  } else {
+    loadingState.classList.add("hidden");
+    contestList.classList.remove("hidden");
+    renderContests();
+  }
+}
+
+// ─── Refresh Button ─────────────────────────────────────────────────────────
+
+async function handleRefresh() {
+  refreshBtn.disabled = true;
+  refreshBtn.classList.add("spinning");
+  try {
+    await chrome.runtime.sendMessage({ type: "REPOLL" });
+  } catch {
+    // Service worker may be asleep/restarting — the periodic alarm will retry.
+  }
+  await loadFromStorage();
+  refreshBtn.disabled = false;
+  refreshBtn.classList.remove("spinning");
+}
+
+refreshBtn.addEventListener("click", handleRefresh);
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
+async function init() {
+  await loadFromStorage();
   setInterval(tickCountdowns, 1000);
 }
 

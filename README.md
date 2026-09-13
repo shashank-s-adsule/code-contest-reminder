@@ -24,18 +24,21 @@ contest-reminder/
 │   ├── background/         # Service worker — polls APIs, fires notifications
 │   ├── popup/              # UI shown when user clicks extension icon
 │   ├── options/            # Settings page (platforms, reminder timing)
-│   └── assets/icons/       # Extension icons (16, 48, 128px)
-├── shared/
-│   └── fetchers/           # Platform API adapters (shared across all targets)
-│       ├── codeforces.js
-│       ├── leetcode.js
-│       ├── codechef.js
-│       └── atcoder.js
+│   ├── assets/icons/       # Extension icons (16, 48, 128px)
+│   └── shared/
+│       └── fetchers/       # Platform API adapters — each hits the platform directly
+│           ├── codeforces.js     # official public API
+│           ├── leetcode.js       # leetcode.com's own GraphQL endpoint
+│           ├── codechef.js       # codechef.com's own contests-list JSON endpoint
+│           ├── atcoder.js        # scrapes atcoder.jp/contests/ (no public JSON API exists)
+│           └── fetchWithTimeout.js
 ├── Docs/
 │   ├── Plan/               # Architecture decisions, milestones
 │   └── to-do/              # Task list
 └── .gitignore
 ```
+
+> **Why `shared/` lives inside `extension/`:** a Chrome extension can only load files from within the folder you point "Load unpacked" at — it can't reach a sibling directory one level up. `shared/fetchers/` used to sit next to `extension/` at the repo root (for reuse by the planned PWA/Electron targets), but that broke the extension's own service worker imports. When Phase 2/3 actually get built, revisit whether to hoist `shared/` back to the root with a small copy/symlink step, or just duplicate it — for now, correctness for the one target that exists wins.
 
 ## Getting Started
 
