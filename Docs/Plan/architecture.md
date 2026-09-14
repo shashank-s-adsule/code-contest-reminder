@@ -10,8 +10,10 @@ chrome.alarms (every 30min)
             ├─▶ LeetCode GraphQL     (leetcode.com/graphql, undocumented)
             ├─▶ CodeChef JSON API    (codechef.com/api/list/contests/all, undocumented)
             ├─▶ AtCoder page scrape  (atcoder.jp/contests/, no API exists)
+            ├─▶ LeetCode Daily       (leetcode.com/graphql, different query)
+            ├─▶ GfG Problem of Day   (practiceapi.geeksforgeeks.org, undocumented)
             └─▶ chrome.storage.local (cache)
-                    └─▶ Popup UI (reads cache, renders cards)
+                    └─▶ Popup UI (reads cache, renders cards + daily section)
                     └─▶ Notification Scheduler (fires alarms per contest)
 ```
 
@@ -24,6 +26,24 @@ chrome.alarms (every 30min)
   fetchErrors: {          // platforms whose last poll failed, mapped to when
     [platform: string]: number,
   },
+  dailyQuestions: {       // today's daily challenge per platform
+    LeetCode?: DailyQuestion,
+    GeeksforGeeks?: DailyQuestion,
+  },
+  dailyErrors: {          // same shape as fetchErrors, for the daily fetchers
+    [platform: string]: number,
+  },
+}
+```
+
+### Daily Question Schema
+```js
+{
+  platform: string,       // "LeetCode" | "GeeksforGeeks"
+  title: string,
+  difficulty: string,     // "Easy" | "Medium" | "Hard"
+  url: string,
+  date: string,           // "YYYY-MM-DD"
 }
 
 // chrome.storage.sync  (synced across devices)

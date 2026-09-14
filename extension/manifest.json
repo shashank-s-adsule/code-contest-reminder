@@ -14,7 +14,8 @@
     "https://codeforces.com/*",
     "https://leetcode.com/*",
     "https://www.codechef.com/*",
-    "https://atcoder.jp/*"
+    "https://atcoder.jp/*",
+    "https://practiceapi.geeksforgeeks.org/*"
   ],
 
   "background": {

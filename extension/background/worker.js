@@ -9,6 +9,8 @@ import { fetchCodeforcesContests } from "../shared/fetchers/codeforces.js";
 import { fetchLeetCodeContests } from "../shared/fetchers/leetcode.js";
 import { fetchCodeChefContests } from "../shared/fetchers/codechef.js";
 import { fetchAtCoderContests } from "../shared/fetchers/atcoder.js";
+import { fetchLeetCodeDaily } from "../shared/fetchers/leetcodeDaily.js";
+import { fetchGfgDaily } from "../shared/fetchers/gfgDaily.js";
 
 const POLL_ALARM = "poll-contests";
 const POLL_INTERVAL_MINUTES = 30;
@@ -47,6 +49,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === POLL_ALARM) {
     await pollAndCache();
     await scheduleNotifications();
+    await pollDailyQuestions();
   }
 
   // Individual contest notification alarms
@@ -107,6 +110,33 @@ async function pollAndCache() {
   });
 
   console.log(`[Worker] Cached ${merged.length} upcoming contests.`);
+}
+
+// ─── Daily Questions ────────────────────────────────────────────────────────
+
+async function pollDailyQuestions() {
+  const [lcResult, gfgResult] = await Promise.allSettled([
+    fetchLeetCodeDaily(),
+    fetchGfgDaily(),
+  ]);
+
+  const { dailyQuestions: prev = {} } = await chrome.storage.local.get("dailyQuestions");
+  const dailyQuestions = {};
+  const dailyErrors = {};
+  const now = Date.now();
+
+  for (const [platform, result] of [["LeetCode", lcResult], ["GeeksforGeeks", gfgResult]]) {
+    if (result.status === "fulfilled") {
+      dailyQuestions[platform] = result.value;
+    } else {
+      console.error(`[Worker] ${platform} daily fetch failed:`, result.reason);
+      dailyErrors[platform] = now;
+      if (prev[platform]) dailyQuestions[platform] = prev[platform]; // show stale rather than nothing
+    }
+  }
+
+  await chrome.storage.local.set({ dailyQuestions, dailyErrors });
+  console.log(`[Worker] Cached daily questions for: ${Object.keys(dailyQuestions).join(", ") || "none"}.`);
 }
 
 // ─── Notification Scheduling ─────────────────────────────────────────────────
@@ -172,8 +202,7 @@ async function fireNotification(alarmName) {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "REPOLL") {
-    pollAndCache()
-      .then(scheduleNotifications)
+    Promise.all([pollAndCache().then(scheduleNotifications), pollDailyQuestions()])
       .then(() => sendResponse({ ok: true }))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true; // keep the message channel open for the async response

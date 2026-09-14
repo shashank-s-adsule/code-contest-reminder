@@ -10,6 +10,10 @@ const loadingState = document.getElementById("loading-state");
 const errorBanner  = document.getElementById("error-banner");
 const lastUpdated  = document.getElementById("last-updated");
 const refreshBtn   = document.getElementById("refresh-btn");
+const dailySection = document.getElementById("daily-section");
+const dailyCards   = document.getElementById("daily-cards");
+
+const DAILY_PLATFORM_ORDER = ["LeetCode", "GeeksforGeeks"];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -150,8 +154,57 @@ function renderContests() {
   }
 }
 
-function renderErrorBanner(fetchErrors) {
-  const failed = Object.keys(fetchErrors || {});
+function buildDailyCard(daily) {
+  const card = document.createElement("a");
+  card.className = "daily-card";
+  card.href = safeUrl(daily.url);
+  card.target = "_blank";
+  card.rel = "noopener noreferrer";
+
+  const top = document.createElement("div");
+  top.className = "daily-card-top";
+
+  const platformBadge = document.createElement("span");
+  platformBadge.className = `platform-badge badge-${daily.platform}`;
+  platformBadge.textContent = daily.platform;
+
+  top.appendChild(platformBadge);
+
+  if (daily.difficulty) {
+    const diffBadge = document.createElement("span");
+    diffBadge.className = `difficulty-badge difficulty-${daily.difficulty}`;
+    diffBadge.textContent = daily.difficulty;
+    top.appendChild(diffBadge);
+  }
+
+  const title = document.createElement("div");
+  title.className = "daily-title";
+  title.textContent = daily.title; // textContent — problem titles come from third-party APIs
+
+  card.append(top, title);
+  return card;
+}
+
+function renderDaily(dailyQuestions) {
+  dailyCards.innerHTML = "";
+  const available = DAILY_PLATFORM_ORDER.filter((p) => dailyQuestions?.[p]);
+
+  if (available.length === 0) {
+    dailySection.classList.add("hidden");
+    return;
+  }
+
+  dailySection.classList.remove("hidden");
+  for (const platform of available) {
+    dailyCards.appendChild(buildDailyCard(dailyQuestions[platform]));
+  }
+}
+
+function renderErrorBanner(fetchErrors, dailyErrors) {
+  const failed = [...new Set([
+    ...Object.keys(fetchErrors || {}),
+    ...Object.keys(dailyErrors || {}),
+  ])];
   if (failed.length === 0) {
     errorBanner.classList.add("hidden");
     errorBanner.textContent = "";
@@ -175,11 +228,13 @@ function tickCountdowns() {
 // ─── Data Loading ───────────────────────────────────────────────────────────
 
 async function loadFromStorage() {
-  const [{ contests: cached = [], lastUpdated: ts, fetchErrors }, { settings }] =
-    await Promise.all([
-      chrome.storage.local.get(["contests", "lastUpdated", "fetchErrors"]),
-      chrome.storage.sync.get("settings"),
-    ]);
+  const [
+    { contests: cached = [], lastUpdated: ts, fetchErrors, dailyQuestions, dailyErrors },
+    { settings },
+  ] = await Promise.all([
+    chrome.storage.local.get(["contests", "lastUpdated", "fetchErrors", "dailyQuestions", "dailyErrors"]),
+    chrome.storage.sync.get("settings"),
+  ]);
 
   window.__settings__ = { settings };
   contests = cached;
@@ -191,7 +246,8 @@ async function loadFromStorage() {
       : `Updated ${ago} min ago`;
   }
 
-  renderErrorBanner(fetchErrors);
+  renderDaily(dailyQuestions);
+  renderErrorBanner(fetchErrors, dailyErrors);
 
   if (cached.length === 0 && !ts) {
     loadingState.classList.remove("hidden");

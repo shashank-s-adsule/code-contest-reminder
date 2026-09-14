@@ -1,12 +1,13 @@
 # Contest Reminder 🏆
 
-A cross-platform contest reminder tool for competitive programmers. Get notified before contests on **Codeforces**, **LeetCode**, **CodeChef**, and **AtCoder** — so you never miss a round.
+A cross-platform contest reminder tool for competitive programmers. Get notified before contests on **Codeforces**, **LeetCode**, **CodeChef**, and **AtCoder** — so you never miss a round. Also surfaces the daily challenge from **LeetCode** and **GeeksforGeeks**.
 
 ## Platforms Supported
 - Codeforces
 - LeetCode
 - CodeChef
 - AtCoder
+- LeetCode Daily Challenge / GeeksforGeeks Problem of the Day
 
 ## Delivery Targets
 | Target | Status | Folder |
@@ -31,6 +32,8 @@ contest-reminder/
 │           ├── leetcode.js       # leetcode.com's own GraphQL endpoint
 │           ├── codechef.js       # codechef.com's own contests-list JSON endpoint
 │           ├── atcoder.js        # scrapes atcoder.jp/contests/ (no public JSON API exists)
+│           ├── leetcodeDaily.js  # LeetCode Daily Challenge (same GraphQL endpoint, different query)
+│           ├── gfgDaily.js       # GeeksforGeeks Problem of the Day
 │           └── fetchWithTimeout.js
 ├── Docs/
 │   ├── Plan/               # Architecture decisions, milestones

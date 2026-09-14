@@ -77,6 +77,69 @@ body {
   to   { transform: rotate(360deg); }
 }
 
+/* ── Daily Challenge ── */
+.daily-section {
+  padding: 10px 8px 4px;
+  border-bottom: 1px solid #1e2535;
+}
+
+.daily-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 0 6px 6px;
+}
+
+.daily-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.daily-card {
+  display: block;
+  background: #161b27;
+  border: 1px solid #1e2535;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s;
+}
+.daily-card:hover { border-color: #334155; }
+
+.daily-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.daily-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.difficulty-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.difficulty-Easy   { background: #0f2e1a; color: #4ade80; }
+.difficulty-Medium { background: #2d2200; color: #fb923c; }
+.difficulty-Hard   { background: #2e0f14; color: #f87171; }
+
+.badge-GeeksforGeeks { background: #08281a; color: #34d399; }
+
 /* ── Last Updated ── */
 .last-updated {
   padding: 6px 14px;

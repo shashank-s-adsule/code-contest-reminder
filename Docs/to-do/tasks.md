@@ -29,6 +29,10 @@
 - [x] Add per-platform error badges if a fetch fails — implemented as one banner listing the failed platform(s), simpler than a badge per card
 - [x] Ensure alarms don't duplicate on repeated polls — orphaned `notify-*` alarms are cleared before each reschedule
 
+### Daily Challenge (new)
+- [x] Add LeetCode Daily Challenge + GeeksforGeeks Problem of the Day as a section in the popup — `leetcodeDaily.js` (leetcode.com/graphql, `activeDailyCodingChallengeQuestion` query) and `gfgDaily.js` (practiceapi.geeksforgeeks.org's own POTD endpoint). Both verified live. Refreshes on the same 30-min poll / manual refresh as contests; falls back to yesterday's cached question rather than disappearing if a fetch fails, same pattern as contests.
+- [ ] Verify the daily section actually rolls over at midnight in a real browser session (worker only re-fetches on its existing 30-min cadence, so it should pick up the new day within 30 min of midnight rather than exactly at it — confirm that's acceptable)
+
 ## Phase 2 — PWA
 - [ ] Scaffold Next.js app
 - [ ] Set up web-push notifications
