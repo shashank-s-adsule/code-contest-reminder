@@ -262,6 +262,12 @@ body {
   color: #475569;
 }
 
+.card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .open-btn {
   font-size: 10.5px;
   color: #38bdf8;
@@ -270,8 +276,24 @@ body {
   border: 1px solid #1e3a4f;
   border-radius: 4px;
   transition: background 0.15s;
+  white-space: nowrap;
 }
 .open-btn:hover { background: #1e3a4f; }
+
+.calendar-btn {
+  color: #94a3b8;
+  border-color: #263042;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.calendar-btn:hover { background: #1e2535; }
+
+.icon-calendar {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
 
 /* ── Empty State ── */
 .empty-state {

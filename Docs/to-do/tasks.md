@@ -44,7 +44,7 @@
 - [ ] Auto-launch on startup option
 
 ## Ideas / Stretch
-- [ ] One-click "Add to Google Calendar" button
+- [x] One-click "Add to Google Calendar" button — each contest card now has a "+ Cal" link next to "Open →" that builds a Google Calendar quick-add URL (`calendar.google.com/calendar/render?action=TEMPLATE&...`) with the contest name, UTC start/end time, and a link back to the contest. No auth, no new API, no manifest changes — it's a plain link, same as "Open →".
 - [ ] Timezone display toggle (IST / UTC / Local)
 - [ ] IITM-specific handle leaderboard
 - [ ] AI weak-spot analysis integration

@@ -12,6 +12,7 @@ const lastUpdated  = document.getElementById("last-updated");
 const refreshBtn   = document.getElementById("refresh-btn");
 const dailySection = document.getElementById("daily-section");
 const dailyCards   = document.getElementById("daily-cards");
+const calendarIconTemplate = document.getElementById("calendar-icon-template");
 
 const DAILY_PLATFORM_ORDER = ["LeetCode", "GeeksforGeeks"];
 
@@ -70,6 +71,26 @@ function safeUrl(url) {
   }
 }
 
+/**
+ * Google Calendar "quick add" link — no auth, no API, just a pre-filled
+ * event form. Dates must be UTC in YYYYMMDDTHHMMSSZ form.
+ */
+function buildGoogleCalendarUrl(contest) {
+  const start = new Date(contest.startTime);
+  const end = new Date(start.getTime() + (contest.durationMinutes || 0) * 60000);
+  const toGCalDate = (d) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `${contest.platform}: ${contest.name}`,
+    dates: `${toGCalDate(start)}/${toGCalDate(end)}`,
+    details: `${contest.platform} contest — ${contest.name}\n${contest.url}`,
+    location: contest.url,
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 // ─── Render ─────────────────────────────────────────────────────────────────
 
 let contests = [];
@@ -123,6 +144,18 @@ function buildCard(contest) {
 
   left.append(countdown, meta);
 
+  const actions = document.createElement("div");
+  actions.className = "card-actions";
+
+  const calendarBtn = document.createElement("a");
+  calendarBtn.className = "open-btn calendar-btn";
+  calendarBtn.href = buildGoogleCalendarUrl(contest);
+  calendarBtn.target = "_blank";
+  calendarBtn.rel = "noopener noreferrer";
+  calendarBtn.title = "Add to Google Calendar";
+  calendarBtn.appendChild(calendarIconTemplate.content.firstElementChild.cloneNode(true));
+  calendarBtn.append("Cal");
+
   const openBtn = document.createElement("a");
   openBtn.className = "open-btn";
   openBtn.href = safeUrl(contest.url);
@@ -130,7 +163,8 @@ function buildCard(contest) {
   openBtn.rel = "noopener noreferrer";
   openBtn.textContent = "Open →";
 
-  bottom.append(left, openBtn);
+  actions.append(calendarBtn, openBtn);
+  bottom.append(left, actions);
   card.append(top, bottom);
   return card;
 }
