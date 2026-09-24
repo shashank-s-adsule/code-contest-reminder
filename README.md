@@ -13,8 +13,7 @@ A cross-platform contest reminder tool for competitive programmers. Get notified
 | Target | Status | Folder |
 |---|---|---|
 | Browser Extension (Chrome) | 🚧 In Progress | `extension/` |
-| PWA (Web App) | 📋 Planned | `pwa/` |
-| Desktop Widget (Electron) | 📋 Planned | `desktop/` |
+| Desktop Widget (Electron) | 🚧 In Progress | `desktop/` |
 
 ## Structure
 
@@ -35,13 +34,24 @@ contest-reminder/
 │           ├── leetcodeDaily.js  # LeetCode Daily Challenge (same GraphQL endpoint, different query)
 │           ├── gfgDaily.js       # GeeksforGeeks Problem of the Day
 │           └── fetchWithTimeout.js
+├── desktop/                 # Electron desktop widget — tray icon + popup window
+│   ├── main.js              # Main process: tray, windows, IPC, polling scheduler
+│   ├── preload.cjs          # contextBridge — exposes a minimal `window.api` to the renderer
+│   ├── renderer/
+│   │   ├── popup.html/.css/.js    # Tray dropdown — same design as the extension popup
+│   │   └── options.html/.css/.js  # Settings window
+│   └── lib/
+│       ├── fetchers/        # Same fetcher logic as the extension, copied in
+│       ├── store.js         # JSON file persistence (chrome.storage equivalent)
+│       ├── getData.js       # Polling + merge/fallback logic (mirrors worker.js)
+│       └── notifications.js # Native OS notifications via setTimeout
 ├── Docs/
 │   ├── Plan/               # Architecture decisions, milestones
 │   └── to-do/              # Task list
 └── .gitignore
 ```
 
-> **Why `shared/` lives inside `extension/`:** a Chrome extension can only load files from within the folder you point "Load unpacked" at — it can't reach a sibling directory one level up. `shared/fetchers/` used to sit next to `extension/` at the repo root (for reuse by the planned PWA/Electron targets), but that broke the extension's own service worker imports. When Phase 2/3 actually get built, revisit whether to hoist `shared/` back to the root with a small copy/symlink step, or just duplicate it — for now, correctness for the one target that exists wins.
+> **Why `shared/` lives inside `extension/`, and why `desktop/` has its own copy:** a Chrome extension can only load files from within the folder you point "Load unpacked" at — it can't reach a sibling directory one level up, which is why `extension/shared/fetchers/` lives inside `extension/` rather than at the repo root. The desktop app isn't sandboxed that way, but keeps its own copy anyway for the same reason the (now-removed) PWA did: independent builds while both are still early. Revisit if a fetcher bug gets fixed in one copy and forgotten in another.
 
 ## Getting Started
 
@@ -52,7 +62,13 @@ contest-reminder/
 4. Click **Load unpacked** → select the `extension/` folder
 5. Pin the extension and click it to see upcoming contests
 
-### Development
-No build step needed for v1 — pure vanilla JS.
+No build step needed for the extension — pure vanilla JS.
+
+### Run the Desktop Widget
 ```
+cd desktop
+npm install
+npm start
+```
+This opens a small always-visible widget on your desktop (Rainmeter-style) showing contests and daily challenges — semi-transparent, no border/taskbar entry, drag the header to reposition it (remembered across restarts). A tray icon (system tray / menu bar depending on your OS) sits alongside it: click to show/hide the widget, right-click for Refresh/Settings/Quit. Settings and cache are stored in your OS's per-app data directory as a single JSON file (no cloud sync, unlike the extension's `chrome.storage.sync`).
 

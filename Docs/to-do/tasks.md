@@ -33,15 +33,74 @@
 - [x] Add LeetCode Daily Challenge + GeeksforGeeks Problem of the Day as a section in the popup — `leetcodeDaily.js` (leetcode.com/graphql, `activeDailyCodingChallengeQuestion` query) and `gfgDaily.js` (practiceapi.geeksforgeeks.org's own POTD endpoint). Both verified live. Refreshes on the same 30-min poll / manual refresh as contests; falls back to yesterday's cached question rather than disappearing if a fetch fails, same pattern as contests.
 - [ ] Verify the daily section actually rolls over at midnight in a real browser session (worker only re-fetches on its existing 30-min cadence, so it should pick up the new day within 30 min of midnight rather than exactly at it — confirm that's acceptable)
 
-## Phase 2 — PWA
-- [ ] Scaffold Next.js app
-- [ ] Set up web-push notifications
-- [ ] Deploy to Vercel
+## Phase 2 — Desktop Widget
+A minimal PWA (`pwa/`, Next.js) was scaffolded and verified working, then
+removed by decision: no web app, just the extension plus a desktop widget.
+See `Docs/Plan/architecture.md`'s "Decision: no PWA" note.
 
-## Phase 3 — Electron
-- [ ] Wrap PWA in Electron shell
-- [ ] System tray with badge count
-- [ ] Auto-launch on startup option
+- [x] Decide the framework — **Electron** (no Rust/Cargo toolchain available
+      for Tauri; Node/npm already worked reliably)
+- [x] Decide what "widget" means — first built as a tray-click popup, then
+      changed to an **always-visible, draggable, semi-transparent desktop
+      overlay** (Rainmeter-style) after comparing it to the user's actual
+      Rainmeter task/note widgets. Tray icon still there as a show/hide
+      toggle + Refresh/Settings/Quit menu, but it's no longer the primary
+      way to see the widget.
+- [x] Decide fetcher reuse — **own copy** in `desktop/lib/fetchers/`, same
+      tradeoff as the (removed) PWA
+- [x] Scaffold Electron app — `desktop/` (`main.js`, `preload.cjs`,
+      `renderer/`, `lib/`)
+- [x] Contest list + daily challenge UI — ported the extension's exact
+      popup design (`renderer/popup.html/.css/.js`), talking to the main
+      process via a `window.api` bridge instead of `chrome.storage`
+- [x] Settings window — ported from `extension/options/`, plus a
+      desktop-only "Launch at login" toggle the extension doesn't need
+- [x] System tray icon — click toggles show/hide of the persistent widget,
+      right-click gives a context menu (Show/Hide, Refresh, Settings, Quit)
+- [x] Made the widget window itself: frameless, transparent, `alwaysOnTop`
+      (`"floating"` level), draggable by its header
+      (`-webkit-app-region: drag`, with the header buttons marked
+      `no-drag` so they stay clickable), position persisted to
+      `store.json` on drag and restored on next launch (defaults to the
+      screen's top-right corner on first run). Added a small "✕" button in
+      the header to hide it (tray brings it back).
+- [x] Native OS notifications — `lib/notifications.js`, plain `setTimeout`
+      per contest/offset (main process stays alive, unlike the extension's
+      service worker, so no `chrome.alarms`-style scheduler needed)
+- [x] Auto-launch on startup option — `app.setLoginItemSettings()`,
+      wired to the settings window's toggle
+- [x] Hit a real bug getting this running: main process written as ESM
+      broke `import ... from "electron"` (named *and* default import both
+      resolved to the plain npm package's path string, not the real API —
+      `app` came back `undefined`). Converted the whole main process +
+      copied fetchers to CommonJS, which is also just the standard, most
+      battle-tested way to write Electron apps. See architecture.md's
+      "Implementation notes" for the full story.
+- [x] Skipped `electron-store` as a persistence dependency — it's ESM-only
+      as of v11, same interop problem. Wrote a ~40-line JSON file store
+      instead (`lib/store.js`).
+- [x] Verified the fetcher + store + polling logic directly under Node
+      (mocking only `electron.app.getPath`) — live data from all 4 contest
+      platforms + both daily challenges, zero errors, settings persist
+      and round-trip correctly.
+- [ ] **Could not verify the actual GUI** (tray icon, widget window,
+      notifications) — this sandboxed shell sets `ELECTRON_RUN_AS_NODE=1`,
+      which forces Electron into plain-Node-CLI mode instead of actually
+      launching the app (likely a deliberate guard against automated tool
+      calls popping up real windows). **You need to run `npm start` in
+      `desktop/` yourself** to confirm the tray icon, widget window, and
+      notifications actually work.
+- [ ] First real run reported as "nothing happened" — no tray icon, no
+      widget, no visible error. Not yet root-caused; likely candidates are
+      a Windows-hidden tray icon (in the `^` overflow area), a stale
+      process still holding the single-instance lock from a previous
+      attempt, or a silent crash whose output wasn't captured. Needs the
+      user to check Task Manager / the terminal output / the hidden tray
+      icons and report back before this can be debugged further.
+- [ ] Package/distribute for Windows/Linux/Mac — `electron-builder` config
+      is in `package.json` (`nsis` for Windows, `AppImage` for Linux, a mac
+      category) but untested; packaging for an OS generally needs to
+      happen on/from that OS, or via a CI matrix
 
 ## Ideas / Stretch
 - [x] One-click "Add to Google Calendar" button — each contest card now has a "+ Cal" link next to "Open →" that builds a Google Calendar quick-add URL (`calendar.google.com/calendar/render?action=TEMPLATE&...`) with the contest name, UTC start/end time, and a link back to the contest. No auth, no new API, no manifest changes — it's a plain link, same as "Open →".

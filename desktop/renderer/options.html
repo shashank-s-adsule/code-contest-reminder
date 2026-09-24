@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Contest Reminder — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <svg class="icon-gear" viewBox="0 0 512 512" aria-hidden="true">
+        <mask id="gear-hole-mask">
+          <rect width="512" height="512" fill="#fff"/>
+          <circle cx="256" cy="256" r="76" fill="#000"/>
+        </mask>
+        <g fill="currentColor" mask="url(#gear-hole-mask)">
+          <circle cx="256" cy="256" r="171"/>
+          <rect x="204" y="30" width="104" height="148" rx="15"/>
+          <rect x="204" y="30" width="104" height="148" rx="15" transform="rotate(45 256 256)"/>
+          <rect x="204" y="30" width="104" height="148" rx="15" transform="rotate(90 256 256)"/>
+          <rect x="204" y="30" width="104" height="148" rx="15" transform="rotate(135 256 256)"/>
+          <rect x="204" y="30" width="104" height="148" rx="15" transform="rotate(180 256 256)"/>
+          <rect x="204" y="30" width="104" height="148" rx="15" transform="rotate(225 256 256)"/>
+          <rect x="204" y="30" width="104" height="148" rx="15" transform="rotate(270 256 256)"/>
+          <rect x="204" y="30" width="104" height="148" rx="15" transform="rotate(315 256 256)"/>
+        </g>
+      </svg>
+      Settings
+    </h1>
+
+    <section>
+      <h2>Platforms</h2>
+      <p class="hint">Toggle which platforms to track.</p>
+      <div class="toggles">
+        <label class="toggle-row">
+          <span class="platform cf">Codeforces</span>
+          <input type="checkbox" id="toggle-Codeforces" checked />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span class="platform lc">LeetCode</span>
+          <input type="checkbox" id="toggle-LeetCode" checked />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span class="platform cc">CodeChef</span>
+          <input type="checkbox" id="toggle-CodeChef" checked />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span class="platform ac">AtCoder</span>
+          <input type="checkbox" id="toggle-AtCoder" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Remind Me Before</h2>
+      <p class="hint">Choose when to receive notifications.</p>
+      <div class="toggles">
+        <label class="toggle-row">
+          <span>1 day before</span>
+          <input type="checkbox" id="remind-1440" />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span>1 hour before</span>
+          <input type="checkbox" id="remind-60" checked />
+          <span class="slider"></span>
+        </label>
+        <label class="toggle-row">
+          <span>15 minutes before</span>
+          <input type="checkbox" id="remind-15" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Startup</h2>
+      <p class="hint">Desktop-only setting — the browser extension doesn't need this.</p>
+      <div class="toggles">
+        <label class="toggle-row">
+          <span>Launch at login</span>
+          <input type="checkbox" id="open-at-login" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <button id="save-btn">Save Settings</button>
+    <div id="saved-msg" class="saved-msg hidden">✅ Settings saved!</div>
+  </div>
+
+  <script src="options.js" type="module"></script>
+</body>
+</html>

@@ -42,3 +42,7 @@ venv/
 *.exe
 *.dll
 *.so
+
+
+# temp files
+temp/

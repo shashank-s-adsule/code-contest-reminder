@@ -1,0 +1,29 @@
+{
+  "name": "contest-reminder-desktop",
+  "version": "1.0.0",
+  "description": "Contest Reminder desktop widget — tray icon, popup window, native notifications.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.contestreminder.desktop",
+    "productName": "Contest Reminder",
+    "files": [
+      "main.js",
+      "preload.cjs",
+      "lib/**/*",
+      "renderer/**/*",
+      "assets/**/*"
+    ],
+    "mac": { "category": "public.app-category.productivity" },
+    "win": { "target": "nsis" },
+    "linux": { "target": ["AppImage"], "category": "Utility" }
+  }
+}
