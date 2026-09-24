@@ -33,37 +33,45 @@
 - [x] Add LeetCode Daily Challenge + GeeksforGeeks Problem of the Day as a section in the popup — `leetcodeDaily.js` (leetcode.com/graphql, `activeDailyCodingChallengeQuestion` query) and `gfgDaily.js` (practiceapi.geeksforgeeks.org's own POTD endpoint). Both verified live. Refreshes on the same 30-min poll / manual refresh as contests; falls back to yesterday's cached question rather than disappearing if a fetch fails, same pattern as contests.
 - [ ] Verify the daily section actually rolls over at midnight in a real browser session (worker only re-fetches on its existing 30-min cadence, so it should pick up the new day within 30 min of midnight rather than exactly at it — confirm that's acceptable)
 
-## Phase 2 — Desktop Widget
+## Phase 2 — Desktop App
 A minimal PWA (`pwa/`, Next.js) was scaffolded and verified working, then
-removed by decision: no web app, just the extension plus a desktop widget.
+removed by decision: no web app, just the extension plus a desktop app.
 See `Docs/Plan/architecture.md`'s "Decision: no PWA" note.
 
 - [x] Decide the framework — **Electron** (no Rust/Cargo toolchain available
       for Tauri; Node/npm already worked reliably)
-- [x] Decide what "widget" means — first built as a tray-click popup, then
-      changed to an **always-visible, draggable, semi-transparent desktop
-      overlay** (Rainmeter-style) after comparing it to the user's actual
-      Rainmeter task/note widgets. Tray icon still there as a show/hide
-      toggle + Refresh/Settings/Quit menu, but it's no longer the primary
-      way to see the widget.
+- [x] Decide what the UI is — went through three shapes: tray-click popup →
+      always-visible Rainmeter-style overlay → **current: a normal resizable
+      window with a sidebar (daily challenges + contest list) and a detail
+      panel**, backed by the tray. See architecture.md's "UI shape" note.
 - [x] Decide fetcher reuse — **own copy** in `desktop/lib/fetchers/`, same
       tradeoff as the (removed) PWA
 - [x] Scaffold Electron app — `desktop/` (`main.js`, `preload.cjs`,
       `renderer/`, `lib/`)
-- [x] Contest list + daily challenge UI — ported the extension's exact
-      popup design (`renderer/popup.html/.css/.js`), talking to the main
-      process via a `window.api` bridge instead of `chrome.storage`
+- [x] Contest list + daily challenge UI — first ported from the extension's
+      popup, talking to the main process via a `window.api` bridge instead
+      of `chrome.storage`; since redesigned (see "Sidebar + detail redesign"
+      below)
 - [x] Settings window — ported from `extension/options/`, plus a
       desktop-only "Launch at login" toggle the extension doesn't need
-- [x] System tray icon — click toggles show/hide of the persistent widget,
+- [x] System tray icon — click toggles show/hide of the window,
       right-click gives a context menu (Show/Hide, Refresh, Settings, Quit)
-- [x] Made the widget window itself: frameless, transparent, `alwaysOnTop`
-      (`"floating"` level), draggable by its header
-      (`-webkit-app-region: drag`, with the header buttons marked
-      `no-drag` so they stay clickable), position persisted to
-      `store.json` on drag and restored on next launch (defaults to the
-      screen's top-right corner on first run). Added a small "✕" button in
-      the header to hide it (tray brings it back).
+- [x] **Sidebar + detail redesign** (`renderer/app.html/.css/.js`, replacing
+      `popup.*`): top bar with last-updated / Refresh / Settings; error
+      banner; sidebar with Daily Challenge cards and Upcoming Contest rows
+      (platform-coloured accent, live mini-countdown); detail panel with
+      badges, big countdown, Starts/Duration/Ends grid, **+ Add to Calendar**,
+      **Open Contest →**, and "More from <platform>" quick-jump rows.
+      Auto-selects the first contest and keeps the selection across refreshes.
+- [x] Window lifecycle rework in `main.js`: dropped the frameless /
+      transparent / `alwaysOnTop` overlay and `widgetPosition`; now a normal
+      window (1080×700, min 820×540) whose size/position is saved as
+      `windowBounds`, that **hides to the tray on close** instead of quitting,
+      with Quit in the tray menu as the only real exit; single-instance lock.
+- [x] Add-to-Google-Calendar on desktop — same URL builder as the extension,
+      opened through `shell.openExternal`
+- [x] All outbound links routed through the main process (`open-external`,
+      http/https only) rather than `target="_blank"` in the sandboxed renderer
 - [x] Native OS notifications — `lib/notifications.js`, plain `setTimeout`
       per contest/offset (main process stays alive, unlike the extension's
       service worker, so no `chrome.alarms`-style scheduler needed)
@@ -93,6 +101,62 @@ See `Docs/Plan/architecture.md`'s "Decision: no PWA" note.
       category) but untested; still only runs via `npm start` from source,
       no installable build yet. Packaging for an OS generally needs to
       happen on/from that OS, or via a CI matrix.
+
+## Remaining / Next Up
+
+### Must verify (code exists, never confirmed)
+- [ ] Extension: alarm fires on the 30-min schedule and the notification
+      appears at the right offset (soak test in a real Chrome profile)
+- [ ] Extension: settings persist across a full browser restart
+- [ ] Extension: daily section rolls over after midnight (30-min lag is the
+      expected worst case — decide if that's acceptable)
+- [ ] Desktop: systematic manual pass on the **new** sidebar + detail window —
+      resize down to the minimum, close-to-tray → tray-click round-trip,
+      Refresh while a contest is selected, saving settings while the window is
+      open, empty state, all-platforms-failed state, long contest names
+- [ ] Desktop: re-confirm notifications after the redesign, and confirm the
+      "Launch at login" toggle actually registers on Windows
+- [ ] Desktop: build an installer with `electron-builder` on each target OS
+      (Windows NSIS first) and run the packaged app — config exists, never run
+
+### Known gaps to fix
+- [ ] **Fetcher duplication** — `desktop/lib/fetchers/` and
+      `extension/shared/fetchers/` are hand-synced copies. Either add a
+      copy/sync script, generate one from the other, or extract a shared
+      package; at minimum add a fixture-based test for each fetcher so a
+      break is caught in one place
+- [ ] No automated tests or CI at all — add fetcher tests (recorded fixtures,
+      especially for the AtCoder HTML scrape) and a simple GitHub Actions
+      lint/test job
+- [ ] Single-instance lock has no `second-instance` handler — launching the
+      app again should focus/show the existing window; also don't run
+      `whenReady` setup in the losing instance
+- [ ] Add a Content-Security-Policy `<meta>` to `app.html` / `options.html`,
+      and type-check the URL argument in the `open-external` IPC handler
+- [ ] Validate/sanitise the payload in the `save-settings` IPC handler
+      (unknown keys, non-array `reminderMinutes`)
+- [ ] `store.json` writes are not serialised — two overlapping `updateStore`
+      calls (e.g. bounds save + poll) can interleave; queue the writes or
+      write atomically (temp file + rename)
+- [ ] Notifications are lost if the desktop app isn't running at trigger time
+      — on launch, consider firing (or showing) reminders that fell inside
+      the last few minutes
+- [ ] Desktop tray/app icons: only 16/48/128 PNGs exist; add `.ico` (Windows)
+      and `.icns` (macOS) for proper installer/taskbar icons, and a macOS
+      template tray icon
+- [ ] Extension popup still has the older layout — decide whether to bring the
+      sidebar/detail visual language (colours, badges) across for consistency
+- [ ] `desktop/package.json` has empty `author` and a placeholder license
+      (`ISC`) — set real values before distributing
+
+### Release / distribution
+- [ ] Chrome Web Store: store listing text, screenshots, promo tile, privacy
+      policy (extension only calls the 5 listed hosts and stores locally),
+      justify host permissions, pay the one-off developer fee, submit
+- [ ] Add a LICENSE file and bump/track versions consistently between
+      `extension/manifest.json` and `desktop/package.json`
+- [ ] Decide on desktop auto-update (`electron-updater`) and code signing
+- [ ] Screenshots / GIF in the README once the UI settles
 
 ## Ideas / Stretch
 - [x] One-click "Add to Google Calendar" button — each contest card now has a "+ Cal" link next to "Open →" that builds a Google Calendar quick-add URL (`calendar.google.com/calendar/render?action=TEMPLATE&...`) with the contest name, UTC start/end time, and a link back to the contest. No auth, no new API, no manifest changes — it's a plain link, same as "Open →".
