@@ -7,7 +7,6 @@ contextBridge.exposeInMainWorld("api", {
   saveSettings: (settings) => ipcRenderer.invoke("save-settings", settings),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
   openOptions: () => ipcRenderer.send("open-options"),
-  hideWidget: () => ipcRenderer.send("hide-widget"),
   onDataUpdated: (callback) => {
     const listener = (_event, data) => callback(data);
     ipcRenderer.on("data-updated", listener);

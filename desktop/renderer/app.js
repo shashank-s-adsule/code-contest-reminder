@@ -1,7 +1,7 @@
 /**
- * Popup renderer — same structure as extension/popup/popup.js, adapted to
- * talk to the main process via the `api` bridge (preload.cjs) instead of
- * chrome.storage / chrome.runtime.
+ * App renderer — sidebar (daily challenge + upcoming contest list) and a
+ * detail panel for the selected contest. Talks to the main process via the
+ * `api` bridge (preload.cjs) instead of chrome.storage / chrome.runtime.
  */
 
 const contestList  = document.getElementById("contest-list");
@@ -11,9 +11,9 @@ const errorBanner  = document.getElementById("error-banner");
 const lastUpdated  = document.getElementById("last-updated");
 const refreshBtn   = document.getElementById("refresh-btn");
 const settingsBtn  = document.getElementById("settings-btn");
-const hideBtn      = document.getElementById("hide-btn");
 const dailySection = document.getElementById("daily-section");
 const dailyCards   = document.getElementById("daily-cards");
+const detailPanel  = document.getElementById("detail-panel");
 
 const DAILY_PLATFORM_ORDER = ["LeetCode", "GeeksforGeeks"];
 
@@ -33,8 +33,12 @@ function formatCountdown(ms) {
   return `${minutes}m ${seconds}s`;
 }
 
+function urgencyClass(ms) {
+  return ms < 3600_000 ? "urgent" : ms < 10800_000 ? "soon" : "";
+}
+
 function formatDuration(minutes) {
-  if (!minutes) return "";
+  if (!minutes) return "—";
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h > 0 && m > 0) return `${h}h ${m}m`;
@@ -90,93 +94,186 @@ function makeExternalLink(tag, href) {
   return el;
 }
 
-// ─── Render ─────────────────────────────────────────────────────────────────
+// ─── State ──────────────────────────────────────────────────────────────────
 
 let contests = [];
 let settings = { platforms: {} };
+let selectedId = null;
 
-function buildCard(contest) {
+function visibleContests() {
+  return contests.filter((c) => !settings?.platforms || settings.platforms[c.platform] !== false);
+}
+
+// ─── Sidebar: Contest List ──────────────────────────────────────────────────
+
+function buildSidebarRow(contest) {
   const ms = new Date(contest.startTime) - Date.now();
-  const urgencyClass = ms < 3600_000 ? "urgent" : ms < 10800_000 ? "soon" : "";
 
-  const card = document.createElement("div");
-  card.className = "contest-card";
-  card.dataset.contestId = contest.id;
+  const row = document.createElement("button");
+  row.type = "button";
+  row.className = `contest-row badge-accent-${contest.platform}${contest.id === selectedId ? " active" : ""}`;
+  row.dataset.contestId = contest.id;
 
   const top = document.createElement("div");
-  top.className = "card-top";
-
-  const name = document.createElement("span");
-  name.className = "contest-name";
-  name.textContent = contest.name;
-
-  const badgeGroup = document.createElement("div");
-  badgeGroup.className = "badge-group";
+  top.className = "row-top";
 
   const platformBadge = document.createElement("span");
   platformBadge.className = `platform-badge badge-${contest.platform}`;
   platformBadge.textContent = contest.platform;
-  badgeGroup.appendChild(platformBadge);
 
+  const countdown = document.createElement("span");
+  countdown.className = `countdown-mini ${urgencyClass(ms)}`;
+  countdown.dataset.start = contest.startTime;
+  countdown.textContent = formatCountdown(ms);
+
+  top.append(platformBadge, countdown);
+
+  const name = document.createElement("div");
+  name.className = "row-name";
+  name.textContent = contest.name;
+
+  row.append(top, name);
+  row.addEventListener("click", () => selectContest(contest.id));
+  return row;
+}
+
+function renderSidebarList() {
+  contestList.innerHTML = "";
+  const visible = visibleContests();
+
+  if (visible.length === 0) {
+    emptyState.classList.remove("hidden");
+    contestList.classList.add("hidden");
+  } else {
+    emptyState.classList.add("hidden");
+    contestList.classList.remove("hidden");
+    for (const contest of visible) {
+      contestList.appendChild(buildSidebarRow(contest));
+    }
+  }
+}
+
+// ─── Detail Panel ───────────────────────────────────────────────────────────
+
+function buildDetailInfoCell(label, value) {
+  const cell = document.createElement("div");
+  cell.className = "info-cell";
+  const l = document.createElement("div");
+  l.className = "info-label";
+  l.textContent = label;
+  const v = document.createElement("div");
+  v.className = "info-value";
+  v.textContent = value;
+  cell.append(l, v);
+  return cell;
+}
+
+function buildRelatedRow(contest) {
+  const ms = new Date(contest.startTime) - Date.now();
+  const row = document.createElement("button");
+  row.type = "button";
+  row.className = "related-row";
+  const name = document.createElement("span");
+  name.className = "related-name";
+  name.textContent = contest.name;
+  const countdown = document.createElement("span");
+  countdown.className = `countdown-mini ${urgencyClass(ms)}`;
+  countdown.dataset.start = contest.startTime;
+  countdown.textContent = formatCountdown(ms);
+  row.append(name, countdown);
+  row.addEventListener("click", () => selectContest(contest.id));
+  return row;
+}
+
+function renderDetail() {
+  detailPanel.innerHTML = "";
+
+  const visible = visibleContests();
+  const contest = visible.find((c) => c.id === selectedId);
+
+  if (!contest) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "detail-placeholder";
+    placeholder.innerHTML = `<p>👈 Select a contest to see details</p>`;
+    detailPanel.appendChild(placeholder);
+    return;
+  }
+
+  const ms = new Date(contest.startTime) - Date.now();
+  const end = new Date(new Date(contest.startTime).getTime() + (contest.durationMinutes || 0) * 60000);
+
+  const header = document.createElement("div");
+  header.className = "detail-header";
+
+  const badges = document.createElement("div");
+  badges.className = "badge-group";
+  const platformBadge = document.createElement("span");
+  platformBadge.className = `platform-badge badge-${contest.platform}`;
+  platformBadge.textContent = contest.platform;
+  badges.appendChild(platformBadge);
   if (contest.type && contest.type !== "Other" && contest.type !== contest.name) {
     const typeBadge = document.createElement("span");
     typeBadge.className = "type-badge";
     typeBadge.textContent = contest.type;
-    badgeGroup.appendChild(typeBadge);
+    badges.appendChild(typeBadge);
   }
 
-  top.append(name, badgeGroup);
+  const name = document.createElement("h1");
+  name.className = "detail-name";
+  name.textContent = contest.name;
 
-  const bottom = document.createElement("div");
-  bottom.className = "card-bottom";
+  header.append(badges, name);
 
-  const left = document.createElement("div");
   const countdown = document.createElement("div");
-  countdown.className = `countdown ${urgencyClass}`;
+  countdown.className = `detail-countdown ${urgencyClass(ms)}`;
   countdown.dataset.start = contest.startTime;
   countdown.textContent = formatCountdown(ms);
 
-  const meta = document.createElement("div");
-  meta.className = "meta";
-  meta.textContent = `${formatStartTime(contest.startTime)} · ${formatDuration(contest.durationMinutes)}`;
-
-  left.append(countdown, meta);
-
-  const actions = document.createElement("div");
-  actions.className = "card-actions";
-
-  const calendarBtn = makeExternalLink("a", buildGoogleCalendarUrl(contest));
-  calendarBtn.className = "open-btn calendar-btn";
-  calendarBtn.title = "Add to Google Calendar";
-  calendarBtn.textContent = "+ Cal";
-
-  const openBtn = makeExternalLink("a", safeUrl(contest.url));
-  openBtn.className = "open-btn";
-  openBtn.textContent = "Open →";
-
-  actions.append(calendarBtn, openBtn);
-  bottom.append(left, actions);
-  card.append(top, bottom);
-  return card;
-}
-
-function renderContests() {
-  contestList.innerHTML = "";
-
-  const visible = contests.filter(
-    (c) => !settings?.platforms || settings.platforms[c.platform] !== false
+  const infoGrid = document.createElement("div");
+  infoGrid.className = "info-grid";
+  infoGrid.append(
+    buildDetailInfoCell("Starts", formatStartTime(contest.startTime)),
+    buildDetailInfoCell("Duration", formatDuration(contest.durationMinutes)),
+    buildDetailInfoCell("Ends", formatStartTime(end.toISOString())),
   );
 
-  if (visible.length === 0) {
-    emptyState.classList.remove("hidden");
-    return;
-  }
+  const actions = document.createElement("div");
+  actions.className = "detail-actions";
+  const calendarBtn = makeExternalLink("a", buildGoogleCalendarUrl(contest));
+  calendarBtn.className = "action-btn calendar-btn";
+  calendarBtn.textContent = "+ Add to Calendar";
+  const openBtn = makeExternalLink("a", safeUrl(contest.url));
+  openBtn.className = "action-btn primary-btn";
+  openBtn.textContent = "Open Contest →";
+  actions.append(calendarBtn, openBtn);
 
-  emptyState.classList.add("hidden");
-  for (const contest of visible) {
-    contestList.appendChild(buildCard(contest));
+  detailPanel.append(header, countdown, infoGrid, actions);
+
+  const related = visible
+    .filter((c) => c.platform === contest.platform && c.id !== contest.id)
+    .slice(0, 5);
+
+  if (related.length > 0) {
+    const relatedSection = document.createElement("div");
+    relatedSection.className = "related-section";
+    const relatedLabel = document.createElement("div");
+    relatedLabel.className = "sidebar-label";
+    relatedLabel.textContent = `More from ${contest.platform}`;
+    relatedSection.appendChild(relatedLabel);
+    for (const c of related) {
+      relatedSection.appendChild(buildRelatedRow(c));
+    }
+    detailPanel.appendChild(relatedSection);
   }
 }
+
+function selectContest(id) {
+  selectedId = id;
+  renderSidebarList();
+  renderDetail();
+}
+
+// ─── Daily Challenge ────────────────────────────────────────────────────────
 
 function buildDailyCard(daily) {
   const card = makeExternalLink("a", safeUrl(daily.url));
@@ -237,11 +334,13 @@ function renderErrorBanner(fetchErrors, dailyErrors) {
 // ─── Live Countdown Update ───────────────────────────────────────────────────
 
 function tickCountdowns() {
-  const countdownEls = document.querySelectorAll(".countdown[data-start]");
+  const countdownEls = document.querySelectorAll("[data-start]");
   for (const el of countdownEls) {
     const ms = new Date(el.dataset.start) - Date.now();
+    const urgency = urgencyClass(ms);
     el.textContent = formatCountdown(ms);
-    el.className = `countdown ${ms < 3600_000 ? "urgent" : ms < 10800_000 ? "soon" : ""}`;
+    el.className = el.className.replace(/\b(urgent|soon)\b/g, "").trim();
+    if (urgency) el.classList.add(urgency);
   }
 }
 
@@ -265,7 +364,13 @@ function applyData(data) {
   } else {
     loadingState.classList.add("hidden");
     contestList.classList.remove("hidden");
-    renderContests();
+
+    const visible = visibleContests();
+    if (!visible.some((c) => c.id === selectedId)) {
+      selectedId = visible[0]?.id ?? null;
+    }
+    renderSidebarList();
+    renderDetail();
   }
 }
 
@@ -291,7 +396,6 @@ async function handleRefresh() {
 
 refreshBtn.addEventListener("click", handleRefresh);
 settingsBtn.addEventListener("click", () => window.api.openOptions());
-hideBtn.addEventListener("click", () => window.api.hideWidget());
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 

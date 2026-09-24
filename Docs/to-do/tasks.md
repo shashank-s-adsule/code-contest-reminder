@@ -83,24 +83,16 @@ See `Docs/Plan/architecture.md`'s "Decision: no PWA" note.
       (mocking only `electron.app.getPath`) — live data from all 4 contest
       platforms + both daily challenges, zero errors, settings persist
       and round-trip correctly.
-- [ ] **Could not verify the actual GUI** (tray icon, widget window,
-      notifications) — this sandboxed shell sets `ELECTRON_RUN_AS_NODE=1`,
-      which forces Electron into plain-Node-CLI mode instead of actually
-      launching the app (likely a deliberate guard against automated tool
-      calls popping up real windows). **You need to run `npm start` in
-      `desktop/` yourself** to confirm the tray icon, widget window, and
-      notifications actually work.
-- [ ] First real run reported as "nothing happened" — no tray icon, no
-      widget, no visible error. Not yet root-caused; likely candidates are
-      a Windows-hidden tray icon (in the `^` overflow area), a stale
-      process still holding the single-instance lock from a previous
-      attempt, or a silent crash whose output wasn't captured. Needs the
-      user to check Task Manager / the terminal output / the hidden tray
-      icons and report back before this can be debugged further.
+- [x] GUI confirmed working by manual run (`npm start`) — tray icon,
+      widget window, and the first-attempt "nothing happened" issue are
+      resolved (root cause not confirmed, but it's working now)
+- [x] Notifications confirmed firing at the correct offset — user-verified
+      in a real running session
 - [ ] Package/distribute for Windows/Linux/Mac — `electron-builder` config
       is in `package.json` (`nsis` for Windows, `AppImage` for Linux, a mac
-      category) but untested; packaging for an OS generally needs to
-      happen on/from that OS, or via a CI matrix
+      category) but untested; still only runs via `npm start` from source,
+      no installable build yet. Packaging for an OS generally needs to
+      happen on/from that OS, or via a CI matrix.
 
 ## Ideas / Stretch
 - [x] One-click "Add to Google Calendar" button — each contest card now has a "+ Cal" link next to "Open →" that builds a Google Calendar quick-add URL (`calendar.google.com/calendar/render?action=TEMPLATE&...`) with the contest name, UTC start/end time, and a link back to the contest. No auth, no new API, no manifest changes — it's a plain link, same as "Open →".

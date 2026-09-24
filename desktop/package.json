@@ -1,7 +1,7 @@
 {
   "name": "contest-reminder-desktop",
   "version": "1.0.0",
-  "description": "Contest Reminder desktop widget — tray icon, popup window, native notifications.",
+  "description": "Contest Reminder desktop app — tray icon, sidebar + detail window, native notifications.",
   "main": "main.js",
   "scripts": {
     "start": "electron ."

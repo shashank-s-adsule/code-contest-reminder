@@ -8,14 +8,16 @@ const { pollAll } = require("./lib/getData.js");
 const { rescheduleNotifications } = require("./lib/notifications.js");
 
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // matches the extension's 30-min cadence
-const WIDGET_WIDTH = 320;
-const WIDGET_HEIGHT = 480;
-const WIDGET_MARGIN = 16;
+const APP_WIDTH = 1080;
+const APP_HEIGHT = 700;
+const APP_MIN_WIDTH = 820;
+const APP_MIN_HEIGHT = 540;
 
 let tray = null;
-let widgetWindow = null;
+let mainWindow = null;
 let optionsWindow = null;
 let pollTimer = null;
+let isQuitting = false;
 
 // Only one instance — a second tray icon for the same app would be confusing.
 if (!app.requestSingleInstanceLock()) {
@@ -26,32 +28,28 @@ function iconPath(name) {
   return path.join(__dirname, "assets", "icons", name);
 }
 
-// ─── Widget Window (always-visible, Rainmeter-style) ───────────────────────
+// ─── Main Window (sidebar + detail app, tray-backed) ────────────────────────
 
-function defaultWidgetPosition() {
+function defaultWindowBounds() {
   const { workArea } = screen.getPrimaryDisplay();
   return {
-    x: workArea.x + workArea.width - WIDGET_WIDTH - WIDGET_MARGIN,
-    y: workArea.y + WIDGET_MARGIN,
+    width: APP_WIDTH,
+    height: APP_HEIGHT,
+    x: workArea.x + Math.round((workArea.width - APP_WIDTH) / 2),
+    y: workArea.y + Math.round((workArea.height - APP_HEIGHT) / 2),
   };
 }
 
-async function createWidgetWindow() {
+async function createMainWindow() {
   const store = await getStore();
-  const { x, y } = store.widgetPosition || defaultWidgetPosition();
+  const bounds = store.windowBounds || defaultWindowBounds();
 
   const win = new BrowserWindow({
-    x,
-    y,
-    width: WIDGET_WIDTH,
-    height: WIDGET_HEIGHT,
-    frame: false,
-    transparent: true,
-    backgroundColor: "#00000000",
-    resizable: false,
-    fullscreenable: false,
-    skipTaskbar: true,
-    hasShadow: true,
+    ...bounds,
+    minWidth: APP_MIN_WIDTH,
+    minHeight: APP_MIN_HEIGHT,
+    title: "Contest Reminder",
+    backgroundColor: "#0b0d13",
     icon: iconPath("icon48.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -61,33 +59,38 @@ async function createWidgetWindow() {
     },
   });
 
-  // "Floating" keeps it above normal windows without stealing focus/activation
-  // the way a plain always-on-top window can on some platforms — this is
-  // what gives it the "sits on the desktop like a widget" feel.
-  win.setAlwaysOnTop(true, "floating");
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.loadFile(path.join(__dirname, "renderer", "app.html"));
 
-  win.loadFile(path.join(__dirname, "renderer", "popup.html"));
-
-  // Remember where the user dragged it to.
-  let moveSaveTimer = null;
-  win.on("moved", () => {
-    clearTimeout(moveSaveTimer);
-    moveSaveTimer = setTimeout(() => {
-      const [wx, wy] = win.getPosition();
-      updateStore({ widgetPosition: { x: wx, y: wy } });
+  // Remember size/position across launches.
+  let boundsSaveTimer = null;
+  const saveBounds = () => {
+    clearTimeout(boundsSaveTimer);
+    boundsSaveTimer = setTimeout(() => {
+      updateStore({ windowBounds: win.getBounds() });
     }, 400);
+  };
+  win.on("moved", saveBounds);
+  win.on("resized", saveBounds);
+
+  // A tray-backed app: closing the window hides it instead of quitting, so
+  // background polling/notifications keep running. Tray menu's "Quit" (or
+  // app.quit() from there) is the only real exit.
+  win.on("close", (e) => {
+    if (isQuitting) return;
+    e.preventDefault();
+    win.hide();
   });
 
   return win;
 }
 
-function toggleWidget() {
-  if (!widgetWindow) return;
-  if (widgetWindow.isVisible()) {
-    widgetWindow.hide();
+function toggleMainWindow() {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
   } else {
-    widgetWindow.show();
+    mainWindow.show();
+    mainWindow.focus();
   }
 }
 
@@ -124,14 +127,14 @@ function createTray() {
   tray.setToolTip("Contest Reminder");
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: "Show/Hide Widget", click: toggleWidget },
+    { label: "Show/Hide Window", click: toggleMainWindow },
     { label: "Refresh", click: () => refreshAndBroadcast() },
     { label: "Settings", click: openOptionsWindow },
     { type: "separator" },
-    { label: "Quit", click: () => app.quit() },
+    { label: "Quit", click: () => { isQuitting = true; app.quit(); } },
   ]);
 
-  tray.on("click", toggleWidget);
+  tray.on("click", toggleMainWindow);
   tray.on("right-click", () => tray.popUpContextMenu(contextMenu));
 }
 
@@ -140,7 +143,7 @@ function createTray() {
 async function refreshAndBroadcast() {
   const data = await pollAll();
   await rescheduleNotifications();
-  if (widgetWindow) widgetWindow.webContents.send("data-updated", data);
+  if (mainWindow) mainWindow.webContents.send("data-updated", data);
   return data;
 }
 
@@ -163,14 +166,13 @@ ipcMain.handle("open-external", (_event, url) => {
   if (url.startsWith("https://") || url.startsWith("http://")) shell.openExternal(url);
 });
 ipcMain.on("open-options", openOptionsWindow);
-ipcMain.on("hide-widget", () => widgetWindow?.hide());
 
 // ─── App Lifecycle ──────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
   createTray();
-  widgetWindow = await createWidgetWindow();
-  widgetWindow.show();
+  mainWindow = await createMainWindow();
+  mainWindow.show();
 
   const settings = await getSettings();
   app.setLoginItemSettings({ openAtLogin: !!settings.openAtLogin });
@@ -179,8 +181,10 @@ app.whenReady().then(async () => {
   startPolling();
 });
 
+app.on("before-quit", () => { isQuitting = true; });
+
 app.on("window-all-closed", () => {
-  // Widget + tray app — subscribing to this event (even as a no-op)
-  // overrides Electron's default of quitting when all windows close.
-  // Stay alive; quitting only happens via the tray menu.
+  // Tray-backed app — subscribing to this event (even as a no-op) overrides
+  // Electron's default of quitting when all windows close. Stay alive;
+  // quitting only happens via the tray menu.
 });
